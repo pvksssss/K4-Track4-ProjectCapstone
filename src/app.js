@@ -5,7 +5,7 @@ const video = $('video'), preview = $('preview'), ctx = preview.getContext('2d')
 const chart = $('chart'), chartCtx = chart.getContext('2d');
 let monitor = new DrowsinessMonitor();
 let landmarker, stream, audio, frameId, loading = false, running = false;
-let generation = 0, mode = null, session = null, calibration = null;
+let generation = 0, mode = null, session = null, calibration = null, videoObjectUrl = null, mediaMode = null;
 let lastProcessed = -Infinity, lastVideoTime = -1, lastSample = -Infinity, lastRender = -Infinity;
 let lastState = null, lostSince = null, lostLogged = false, nextBeep = 0;
 let simulatedMs = -50;
@@ -24,11 +24,12 @@ function elapsed(time = performance.now()) { return session ? Math.max(0, time -
 function clock(ms) { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; }
 function controls() {
   $('start-camera').disabled = running || loading;
+  $('start-video').disabled = running || loading;
   $('start-simulation').disabled = running || loading;
   $('stop').disabled = !running && !loading;
   $('alert-duration').disabled = running || loading;
   $('scenario').disabled = running || loading;
-  $('calibrate').disabled = !running || mode !== 'camera' || !!calibration;
+  $('calibrate').disabled = !running || (mode !== 'camera' && mode !== 'video') || !!calibration;
   $('export').disabled = !session;
 }
 function stateView(state, description) {
@@ -81,22 +82,29 @@ function newSession(source) {
   mode = source; running = true; loading = false;
   monitor = new DrowsinessMonitor({ alertAfterMs: Number($('alert-duration').value) * 1000 });
   session = { id: new Date().toISOString(), source, scenario: source === 'simulation' ? $('scenario').value : null,
+    mediaFile: source === 'video' ? session?.mediaFile ?? null : null,
     startedAt: new Date().toISOString(), startedMono: performance.now(), stoppedAt: null,
-    model: source === 'camera' ? 'MediaPipe Face Landmarker float16/1; tasks-vision 0.10.32' : null, calibrations: [] };
+    model: source === 'simulation' ? null : 'MediaPipe Face Landmarker float16/1; tasks-vision 0.10.32', calibrations: [] };
   samples = []; events = []; history = []; latencies = []; frameTimes = [];
   lastProcessed = lastSample = lastRender = -Infinity; lastVideoTime = -1; lastState = null;
   lostSince = null; lostLogged = false; nextBeep = 0;
+  // Avoid reporting a stalled stream before its first scheduled frame.
+  lastProcessed = performance.now();
   setThreshold(0.21, source === 'simulation' ? 'mô phỏng' : 'mặc định');
   $('preview').hidden = false; $('placeholder').hidden = true;
   $('simulation-label').hidden = source !== 'simulation';
-  $('source-badge').textContent = source === 'simulation' ? 'MÔ PHỎNG' : 'CAMERA TRỰC TIẾP';
+  $('video-label').hidden = source !== 'video';
+  $('source-badge').textContent = source === 'simulation' ? 'MÔ PHỎNG' : source === 'video' ? 'VIDEO DỰ PHÒNG' : 'CAMERA TRỰC TIẾP';
   $('source-badge').className = `badge ${source}`;
   $('session-dot').classList.add('running');
-  $('live-indicator').textContent = source === 'simulation' ? 'SIMULATION' : 'LIVE';
-  $('chart-source').textContent = source === 'simulation' ? 'DỮ LIỆU MÔ PHỎNG' : 'CAMERA THỰC';
+  $('live-indicator').textContent = source === 'simulation' ? 'SIMULATION' : source === 'video' ? 'VIDEO' : 'LIVE';
+  $('chart-source').textContent = source === 'simulation' ? 'DỮ LIỆU MÔ PHỎNG' : source === 'video' ? 'VIDEO DỰ PHÒNG' : 'CAMERA THỰC';
   $('latency-description').textContent = source === 'simulation' ? 'Không chạy model trong chế độ mô phỏng.' : 'Đo riêng bước chạy model trên thiết bị.';
   $('latency-value').textContent = '—'; $('fps-label').textContent = '— FPS';
-  addEvent('start', source === 'simulation' ? 'Bắt đầu mô phỏng' : 'Kết nối camera', source === 'simulation' ? 'Tín hiệu EAR tổng hợp, không phải kết quả nhận diện.' : 'Hình ảnh được xử lý trên thiết bị.');
+  addEvent('start', source === 'simulation' ? 'Bắt đầu mô phỏng' : source === 'video' ? 'Mở video dự phòng' : 'Kết nối camera',
+    source === 'simulation' ? 'Tín hiệu EAR tổng hợp, không phải kết quả nhận diện.'
+      : source === 'video' ? 'Video quay sẵn, chạy qua cùng model và bộ đếm. Không phải camera trực tiếp.'
+      : 'Hình ảnh được xử lý trên thiết bị.');
   stateView('normal'); controls();
 }
 
@@ -140,9 +148,45 @@ async function startCamera() {
     notice(messages[error.name] || 'Không khởi tạo được camera/model. Chạy npm install và npm run setup, sau đó tải lại trang. Chi tiết: ' + error.message);
   }
 }
+  // Fallback when the demo laptop has no working webcam: run a pre-recorded file
+  // through the identical model, geometry, calibration and alert pipeline.
+  async function startVideoFile(file) {
+    if (running || loading || !file) return;
+    const token = ++generation;
+    loading = true; controls(); initAudio();
+    let url = null;
+    try {
+      notice('Đang khởi tạo model cục bộ. Lần đầu có thể mất vài giây…');
+      await loadModel();
+      if (token !== generation) return;
+      url = URL.createObjectURL(file); videoObjectUrl = url;
+      video.srcObject = null; video.src = url; video.loop = false;
+      video.hidden = false;
+      await video.play();
+      if (token !== generation) return;
+      preview.width = video.videoWidth || 960; preview.height = video.videoHeight || 600;
+      mediaMode = 'file';
+      newSession('video');
+      session.mediaFile = { name: file.name, sizeBytes: file.size, type: file.type };
+      notice('Đang phát video dự phòng. Kết quả này KHÔNG phải camera trực tiếp; nhãn nguồn được ghi trong JSON xuất.');
+      beginCalibration();
+      frameId = requestAnimationFrame(cameraFrame);
+    } catch (error) {
+      // A cancelled play() may reject after a new session has taken over this video element.
+      // stopSession already released the old URL; never clean up the new session's media.
+      if (token !== generation) return;
+      if (url) URL.revokeObjectURL(url);
+      videoObjectUrl = null; mediaMode = null;
+      loading = false; video.pause(); video.removeAttribute('src'); video.load();
+      video.hidden = true; controls(); stateView('idle');
+      notice('Không phát được video. Thử tệp mp4/webm phổ biến. Chi tiết: ' + error.message);
+    }
+  }
 function beginCalibration() {
-  if (!running || mode !== 'camera') return;
-  calibration = { started: performance.now(), last: null, validMs: 0, samples: [] };
+  if (!running || (mode !== 'camera' && mode !== 'video')) return;
+  // Start the acquisition deadline only after inference actually returns a frame.
+  // The first GPU inference can take seconds and must not consume this budget.
+  calibration = { started: null, last: null, validMs: 0, samples: [] };
   session.calibrationReady = false;
   monitor.closedSince = null;
   $('calibration-overlay').hidden = false; $('calibration-progress').style.width = '0%';
@@ -152,10 +196,13 @@ function beginCalibration() {
 }
 function calibrationStep(measurement, time) {
   const current = calibration;
+  current.started ??= time;
   if (time - current.started > 15000) {
     calibration = null; $('calibration-overlay').hidden = true;
     addEvent('lost', 'Hiệu chuẩn chưa thành công', 'Chưa thu được đủ tín hiệu hợp lệ.');
-    notice('Hiệu chuẩn chưa thành công. Tăng ánh sáng, tháo kính tối màu và nhấn “Hiệu chuẩn lại”. Cảnh báo tạm dừng đến khi hiệu chuẩn xong.');
+    notice(mode === 'video'
+      ? 'Video kết thúc hoặc thiếu đủ 3 giây mắt mở ở đầu tệp để hiệu chuẩn. Dùng video mở đầu bằng khoảng 8–10 giây mắt mở, rồi mới đến đoạn nhắm mắt.'
+      : 'Hiệu chuẩn chưa thành công. Tăng ánh sáng, tháo kính tối màu và nhấn “Hiệu chuẩn lại”. Cảnh báo tạm dừng đến khi hiệu chuẩn xong.');
     controls(); return;
   }
   const good = measurement.valid && measurement.ear >= 0.14 && measurement.ear <= 0.5;
@@ -178,27 +225,32 @@ function calibrationStep(measurement, time) {
   }
 }
 function cameraFrame(time) {
-  if (!running || mode !== 'camera') return;
+  if (!running || (mode !== 'camera' && mode !== 'video')) return;
   // Limit synchronous inference to ~15 Hz so the interface remains responsive.
   if (time - lastProcessed >= 65 && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
     lastProcessed = time; lastVideoTime = video.currentTime;
     try {
       const before = performance.now();
       const result = landmarker.detectForVideo(video, before);
-      const inferenceMs = performance.now() - before;
+      const measuredAt = performance.now();
+      const inferenceMs = measuredAt - before;
       const landmarks = result.faceLandmarks?.[0];
       const measurement = measureFace(landmarks, preview.width, preview.height);
       ctx.drawImage(video, 0, 0, preview.width, preview.height);
       if (landmarks) drawLandmarks(landmarks, measurement.valid);
-      if (calibration) calibrationStep(measurement, time);
-      processMeasurement(measurement, time, inferenceMs, !session.calibrationReady);
+      if (calibration) calibrationStep(measurement, measuredAt);
+      processMeasurement(measurement, measuredAt, inferenceMs, !session.calibrationReady);
     } catch (error) {
-      stopSession('Lỗi xử lý camera'); notice('Không xử lý được khung hình: ' + error.message); return;
+      stopSession('Lỗi xử lý khung hình'); notice('Không xử lý được khung hình: ' + error.message); return;
     }
   } else if (time - lastProcessed > 600) {
-    processMeasurement({ valid: false, reason: 'Camera không cung cấp khung hình mới' }, time, null, !session.calibrationReady);
+    const missing = { valid: false, reason: mediaMode === 'file' ? 'Video không cung cấp khung hình mới' : 'Camera không cung cấp khung hình mới' };
+    if (calibration && calibration.started !== null) calibrationStep(missing, time);
+    processMeasurement(missing, time, null, !session.calibrationReady);
     lastProcessed = time;
   }
+  // A file has an end; a live camera never reaches one.
+  if (mediaMode === 'file' && video.ended) { stopSession('Hết video dự phòng'); return; }
   frameId = requestAnimationFrame(cameraFrame);
 }
 function drawLandmarks(points, valid) {
@@ -211,13 +263,16 @@ function drawLandmarks(points, valid) {
     indices.forEach(index => { const p = points[index]; ctx.beginPath(); ctx.arc(p.x * preview.width, p.y * preview.height, 2.5, 0, 2 * Math.PI); ctx.fill(); });
   }
 }
+const SOURCE_LABEL = { simulation: 'Mô phỏng', camera: 'Camera thực', video: 'Video dự phòng' };
 function processMeasurement(measurement, time, inferenceMs, suspended = false) {
   const status = monitor.update({ time, ear: measurement.ear, valid: measurement.valid && !suspended });
   const state = suspended ? 'calibrating' : status.state;
   stateView(state, state === 'lost' ? measurement.reason : undefined);
-  $('tracking-label').textContent = measurement.valid ? (mode === 'simulation' ? '◉ TÍN HIỆU MÔ PHỎNG' : '◉ MỐC MẮT HỢP LỆ') : `○ ${measurement.reason || 'THIẾU TÍN HIỆU'}`;
+  $('tracking-label').textContent = measurement.valid
+    ? (mode === 'simulation' ? '◉ TÍN HIỆU MÔ PHỎNG' : mode === 'video' ? '◉ MỐC MẮT HỢP LỆ · VIDEO' : '◉ MỐC MẮT HỢP LỆ')
+    : `○ ${measurement.reason || 'THIẾU TÍN HIỆU'}`;
   if (status.newAlert) {
-    addEvent('alert', 'Cảnh báo nhắm mắt kéo dài', `${seconds(status.closedMs)} giây · EAR ${measurement.ear.toFixed(3)} · ${mode === 'simulation' ? 'Mô phỏng' : 'Camera thực'}`, time);
+    addEvent('alert', 'Cảnh báo nhắm mắt kéo dài', `${seconds(status.closedMs)} giây · EAR ${measurement.ear.toFixed(3)} · ${SOURCE_LABEL[mode]}`, time);
   }
   if (state === 'lost') {
     lostSince ??= time;
@@ -251,7 +306,7 @@ function processMeasurement(measurement, time, inferenceMs, suspended = false) {
   $('latency-value').textContent = latencies.length ? (latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(1) : '—';
   const observedFps = frameTimes.length > 1 ? Math.round((frameTimes.length - 1) * 1000 / (frameTimes.at(-1) - frameTimes[0])) : 0;
   $('fps-label').textContent = `${observedFps || '—'} ${mode === 'simulation' ? 'SAMPLE/S' : 'FPS'}`;
-  $('session-label').textContent = `${mode === 'simulation' ? 'Mô phỏng' : 'Camera'} · ${clock(elapsed(time))}`;
+  $('session-label').textContent = `${SOURCE_LABEL[mode]} · ${clock(elapsed(time))}`;
   drawChart(elapsed(time));
 }
 
@@ -319,10 +374,14 @@ function stopSession(reason = 'Đã dừng phiên') {
   generation++; const wasActive = running;
   running = false; loading = false; cancelAnimationFrame(frameId);
   stream?.getTracks().forEach(t => t.stop()); stream = null; video.srcObject = null;
+  // Release the local file handle; nothing is retained after a session stops.
+  if (videoObjectUrl) { video.pause(); video.removeAttribute('src'); video.load(); URL.revokeObjectURL(videoObjectUrl); videoObjectUrl = null; }
+  mediaMode = null; video.hidden = true;
   calibration = null; $('calibration-overlay').hidden = true;
   if (wasActive && session) { session.stoppedAt = new Date().toISOString(); session.durationMs = Math.round(elapsed()); addEvent('stop', reason, 'Dữ liệu phiên vẫn có thể xuất xuống máy.'); }
   $('session-dot').classList.remove('running'); $('session-label').textContent = reason;
   $('live-indicator').textContent = 'STOPPED'; $('tracking-label').textContent = '○ PHIÊN ĐÃ DỪNG';
+  $('simulation-label').hidden = true; $('video-label').hidden = true;
   $('closed-time').textContent = '0.0'; $('closed-progress').style.width = '0%';
   stateView('idle', session ? 'Phiên đã dừng. Xem hoặc xuất dữ liệu bên dưới.' : undefined);
   controls();
@@ -368,6 +427,7 @@ function exportSession() {
       recentInferenceP95Ms: sorted.length ? sorted[Math.ceil(sorted.length * .95) - 1] : null },
     retention: 'Most recent 9000 samples (~30 min), 1000 events; latency statistics: last 300 inferences. Counters reset after calibration.',
     limitations: 'Eye-closure heuristic; not a medical diagnosis or a validated driving-safety system. Simulation is synthetic, not model accuracy evidence.',
+    evidenceClass: session.source === 'camera' ? 'live-camera' : session.source === 'video' ? 'pre-recorded-file' : 'synthetic-simulation',
     events, samples };
   const name = `driverwatch-${mode}-${session.id.replace(/[:.]/g, '-')}`;
   download(name + '.json', JSON.stringify(report, null, 2), 'application/json');
@@ -375,6 +435,12 @@ function exportSession() {
 }
 
 $('start-camera').addEventListener('click', startCamera);
+$('start-video').addEventListener('click', () => $('video-file').click());
+$('video-file').addEventListener('change', event => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  startVideoFile(file);
+});
 $('start-simulation').addEventListener('click', startSimulation);
 $('stop').addEventListener('click', () => { stopSession(); notice(); });
 $('calibrate').addEventListener('click', beginCalibration);

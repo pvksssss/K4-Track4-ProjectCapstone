@@ -4,3 +4,4 @@ models/*.task
 models/*.partial
 *.log
 test-results/
+.tmp-verify/

@@ -2,7 +2,7 @@
 
 ## Những gì đã có thể chứng minh
 
-`npm test` kiểm tra 10 tình huống logic/hình học: chớp mắt 200 ms, cảnh báo sau 1500 ms, một cảnh báo mỗi đợt nhắm, mất tín hiệu, khung hình bị gián đoạn, tỉ lệ theo thời lượng, timestamp lặp, EAR không hợp lệ, hiệu chuẩn và nháy một mắt.
+`npm test` kiểm tra 19 tình huống logic/hình học và vòng đời ứng dụng: chớp mắt 200 ms, cảnh báo sau 1500 ms, một cảnh báo mỗi đợt nhắm, mất tín hiệu, khung hình bị gián đoạn, tỉ lệ theo thời lượng, timestamp lặp, EAR không hợp lệ, hiệu chuẩn, nháy một mắt, model khởi động chậm và hủy/đổi video đang tải.
 
 Đây là phép thử trên đầu vào tổng hợp với kết quả kỳ vọng đã biết, không phải đánh giá độ chính xác của MediaPipe hay kết luận về buồn ngủ thực tế. Tương tự, trang `tests/model-smoke.html` chỉ xác nhận runtime/model tải được và thực hiện suy luận trên khung hình trống.
 
@@ -29,6 +29,23 @@ Dùng thành viên đội tự đóng vai, cùng một laptop, camera, độ ph�
 | Độ trễ model mean/P95 | JSON `summary.recentInferenceMeanMs` / `recentInferenceP95Ms`; tối đa 300 khung gần nhất | Chưa đo trên người |
 | Độ phủ tín hiệu | `validMs / (validMs + unknownMs)` sau hiệu chuẩn; kèm độ dài phiên | Chưa đo |
 | Tỉ lệ hiệu chuẩn thành công | Số lần thu đủ 3 giây hợp lệ / tổng lần bắt đầu hiệu chuẩn | Chưa đo |
+
+## Kết quả đã đo trên tệp video dự phòng (không phải người thật)
+
+Bảng trên vẫn để trống vì chưa có ai ngồi trước webcam. Để chứng minh đường chạy đầu-cuối hoạt động, nhóm đã chạy một tệp video 20 giây ghép từ ba đoạn (mắt mở → mắt nhắm → nền xám → mắt mở lại) qua nút **Video dự phòng**. Đây là **bằng chứng đường chạy**, không phải số liệt độ chính xác:
+
+| Đoạn | Kết quả quan sát |
+|---|---|
+| 0–9s mắt mở | Hiệu chuẩn hoàn tất lúc 7.7s; EAR mở 0.263 → ngưỡng cá nhân 0.179 |
+| 9–15s mắt nhắm | EAR rơi xuống 0.022–0.026; cảnh báo đúng một lần lúc 11.0s với `closedMs = 1.5s` |
+| 15–18s nền xám | Trạng thái “Thiếu tín hiệu”, bộ đếm nhắm mắt bị ngắt |
+| 18–20s mắt mở lại | Tín hiệu trở lại, bộ đếm chạy lại từ đầu |
+
+JSON xuất cho phiên đó: `source: video`, `evidenceClass: pre-recorded-file`, 1 cảnh báo, 76 mẫu, `validMs` 9555, `unknownMs` 3076, suy luận mean 43.1 ms / P95 35.5 ms (laptop đang chạy mô phỏng Chrome). Không suy ra từ đây bất kỳ kết luận nào về độ chính xác trên người.
+
+Lưu ý vận hành: lần suy luận đầu tiên của một phiên mất khoảng 4–5 giây để khởi động GPU. Nếu tệp video không mở đầu bằng đủ thời gian mắt mở, hiệu chuẩn 3 giây sẽ không kịp và cảnh báo bị tạm dừng. Chuẩn bị tệp mở đầu bằng khoảng 8–10 giây mắt mở.
+
+Sau bản sửa qua review, thời hạn thu mẫu 15 giây bắt đầu khi suy luận đầu tiên hoàn tất, thay vì lúc mở phiên. Điều này không tua lại video: nếu đoạn mắt mở đã chạy qua trong lúc model khởi động thì vẫn cần tệp có phần mở đầu đủ dài. Kiểm thử hồi quy dùng lần suy luận đầu giả lập dài 20 giây, sau đó 3 giây mắt mở, cho cả nguồn camera và video; đây là kiểm thử logic, không phải số đo hiệu năng thực tế.
 
 Không gọi thời gian suy luận là độ trễ toàn hệ thống. Ứng dụng giới hạn khoảng 15 lần suy luận/giây; tốc độ thực phụ thuộc laptop. Mốc 1.5 giây là ngưỡng logic sau mẫu đầu tiên được nhận là nhắm, có sai số lấy mẫu và nhận diện so với thời điểm người thật bắt đầu nhắm.
 

@@ -2,7 +2,7 @@
 
 ## Tự động
 
-- `npm test`: **10/10 pass**, gồm hình học EAR, chớp mắt ngắn, thời điểm cảnh báo 1500 ms, mất tín hiệu, khoảng trống khung hình, tỉ lệ theo thời lượng, timestamp lặp và hiệu chuẩn.
+- `npm test`: **19/19 pass**, gồm 10 ca hình học/bộ đếm và 9 ca hồi quy vòng đời ứng dụng. Các ca mới kiểm tra lỗi video cũ trả về sau khi chuyển sang video/camera/mô phỏng, hủy video rồi nhận kết quả thành công muộn, tệp lỗi, hiệu chuẩn sau suy luận đầu kéo dài 20 giây (camera và video), timeout khi mất mặt và khi luồng hình bị treo. API trình duyệt và model được giả lập trong Node; chưa phải thử nghiệm webcam trực tiếp.
 - `npm run check`: không có lỗi cú pháp. `tests/model-smoke.js` cũng qua `node --check`.
 - `git diff --check`: không có lỗi whitespace.
 - Model đã tải 3,758,596 bytes, SHA-256 khớp giá trị khóa trong script thiết lập. Chạy lại `npm run setup` xác nhận model đã có và hợp lệ.

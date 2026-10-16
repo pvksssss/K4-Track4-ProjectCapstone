@@ -15,11 +15,12 @@ npm start
 Mở **http://127.0.0.1:8080**. Không mở `index.html` bằng `file://`. Nếu PowerShell chặn `npm.ps1`, dùng `npm.cmd` thay cho `npm`.
 
 - Internet chỉ cần ở bước cài thư viện và tải model (~3.8 MB). Sau đó ứng dụng chạy cục bộ, không dùng API key, CDN hay dịch vụ AI bên ngoài.
-- Bấm **Bắt đầu camera**, tự cấp quyền webcam, mở mắt tự nhiên và nhìn thẳng để hiệu chuẩn 3 giây. Thời gian chờ hiệu chuẩn tối đa 15 giây; không phát cảnh báo cho đến khi hiệu chuẩn thành công.
+- Bấm **Bắt đầu camera**, tự cấp quyền webcam, mở mắt tự nhiên và nhìn thẳng để hiệu chuẩn 3 giây. Thời hạn thu mẫu hiệu chuẩn là 15 giây kể từ khi khung suy luận đầu tiên hoàn tất, không tính thời gian khởi động model; không phát cảnh báo cho đến khi hiệu chuẩn thành công.
 - Nhắm cả hai mắt trên ngưỡng thời gian đã chọn (mặc định 1.5 giây) để thử cảnh báo; mở mắt để kết thúc. Chớp mắt ngắn không báo động.
-- Bấm **Chạy mô phỏng** để thử logic bằng tín hiệu tổng hợp trong 16 giây; chọn kịch bản trước khi chạy. Mô phỏng được ghi nhãn trên giao diện và trong file xuất.
+- Bấm **Video dự phòng** để mở một tệp video quay sẵn khi webcam hỏng hoặc không có camera. Video chạy qua **đúng model, hình học, hiệu chuẩn và bộ đếm** như camera thật, nhưng luôn được gắn nhãn “VIDEO DỰ PHÒNG · KHÔNG PHẢI CAMERA TRỰC TIẾP” và ghi `evidenceClass: pre-recorded-file` trong JSON. **Nên mở đầu tệp bằng khoảng 8–10 giây mắt mở** để hiệu chuẩn kịp; lần suy luận đầu tiên cần vài giây khởi động GPU.
+- Bấm **Chạy mô phỏng** để thử logic bằng tín hiệu tổng hợp trong 16 giây; chọn kịch bản trước khi chạy. Mô phỏng được ghi nhãn trên giao diện và trong file xuất (`evidenceClass: synthetic-simulation`).
 - Bấm **Xuất dữ liệu phiên** để tải JSON chứa số đo, cấu hình, hiệu chuẩn và sự kiện; không chứa ảnh/video. Phiên mới thay thế dữ liệu của phiên trước, nên xuất trước khi bắt đầu phiên mới.
-- Bấm **Dừng phiên** để tắt camera. Rời tab cũng dừng phiên. `Ctrl+C` tại terminal để dừng máy chủ.
+- Bấm **Dừng phiên** để tắt camera hoặc dừng video. Rời tab cũng dừng phiên. `Ctrl+C` tại terminal để dừng máy chủ.
 
 Nếu cổng 8080 đã được dùng:
 
@@ -37,6 +38,8 @@ npm start
 - Mất mặt, mặt quá nhỏ, góc quay đầu lớn hoặc khoảng cách khung hình >600 ms ngắt bộ đếm nhắm mắt. Bộ lọc hình học không phải điểm confidence của model và không đảm bảo phát hiện mọi ảnh kém chất lượng.
 - Biểu đồ EAR 30 giây; tỉ lệ nhắm mắt trên thời gian hợp lệ trong cửa sổ 60 giây; số lần cảnh báo/chớp mắt; thời gian suy luận thực tế. Tỉ lệ nhắm mắt này có tính chớp mắt ngắn, không phải PERCLOS lâm sàng đã được chuẩn hóa.
 - Không ghi hay tải video lên server. Log tồn tại trong RAM, chỉ được lưu thành file khi bạn xuất. Mỗi phiên giữ tối đa 9000 mẫu (~30 phút), 1000 sự kiện; thống kê suy luận lấy 300 khung gần nhất. Hiệu chuẩn lại sẽ bắt đầu lại các bộ đếm và cửa sổ thống kê mắt.
+- Ba nguồn đầu vào được phân biệt rõ và ghi trong JSON xuất: `camera` (`evidenceClass: live-camera`), `video` (`pre-recorded-file`), `simulation` (`synthetic-simulation`). Không nên trộn ba nguồn này khi tính độ chính xác.
+- Video dự phòng chỉ đọc tệp cục bộ qua đối tượng `blob:` tạm trong bộ nhớ và giải phóng ngay khi dừng phiên; không có tệp nào được gửi đi.
 
 ## Kiểm tra
 
@@ -45,7 +48,7 @@ npm test
 npm run check
 ```
 
-10 kiểm thử về hình học, chớp mắt, cảnh báo theo thời gian, mất tín hiệu, khung hình bị trễ, tỉ lệ cửa sổ trượt và hiệu chuẩn. Không cần webcam để chạy kiểm thử logic.
+19 kiểm thử về hình học, chớp mắt, cảnh báo theo thời gian, mất tín hiệu, khung hình bị trễ, tỉ lệ cửa sổ trượt, hiệu chuẩn khi model khởi động chậm và dừng/đổi video đang tải. Không cần webcam để chạy kiểm thử logic; các ca vòng đời ứng dụng dùng bộ giả lập API trình duyệt và model có thời gian suy luận điều khiển được.
 
 Khi server đang chạy, mở http://127.0.0.1:8080/tests/model-smoke.html để kiểm tra model thực sự khởi tạo và xử lý một canvas trống; không bật camera. Phép thử này không đo độ chính xác trên khuôn mặt người.
 
@@ -54,7 +57,7 @@ Khi server đang chạy, mở http://127.0.0.1:8080/tests/model-smoke.html để
 ```text
 index.html                 Giao diện ứng dụng
 hackathon.html             Trang đề bài gốc, được giữ nguyên
-src/app.js                 Webcam, MediaPipe, hiệu chuẩn, giao diện, mô phỏng, xuất JSON
+src/app.js                 Webcam, video dự phòng, MediaPipe, hiệu chuẩn, giao diện, mô phỏng, xuất JSON
 src/monitor.js             Hình học và bộ máy quyết định độc lập với giao diện
 src/styles.css             Giao diện responsive
 scripts/server.mjs         Server localhost, chỉ phục vụ tài nguyên được cho phép

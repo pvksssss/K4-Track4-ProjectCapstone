@@ -11,7 +11,7 @@ Prototype tập trung vào một vòng đầu vào → đo → quyết định �
 1. Chạy `npm install`, `npm run setup`, `npm test`, `npm start` trước giờ demo. Dùng Chrome/Edge tại `http://127.0.0.1:8080`.
 2. Kiểm tra webcam, âm lượng loa, ánh sáng mặt và quyền camera trên đúng laptop sẽ trình bày.
 3. Chạy thử trực tiếp và xuất JSON của phiên. Dữ liệu này mới là bằng chứng về model trên người, khác với mô phỏng logic.
-4. Tự quay video màn hình dự phòng 30–60 giây gồm hiệu chuẩn, chớp mắt, nhắm mắt và mất khuôn mặt. Dùng công cụ quay màn hình của máy; ứng dụng không tự ghi hình.
+4. Chuẩn bị sẵn một tệp video quay trước (mở đầu bằng khoảng 8–10 giây mắt mở, có đoạn nhắm mắt 2–3 giây) để dùng nút **Video dự phòng** khi webcam hỏng. Tự quay video màn hình dự phòng 30–60 giây gồm hiệu chuẩn, chớp mắt, nhắm mắt và mất khuôn mặt. Dùng công cụ quay màn hình của máy; ứng dụng không tự ghi hình.
 5. Đọc file `EVALUATION.md`, điền kết quả thật, chọn một ca lỗi có thể lặp lại. Không trình bày con số chưa đo.
 
 ## Phút 0–1: vấn đề và người dùng
@@ -34,7 +34,9 @@ Nói rõ đây là đề xuất capstone; không phải sản phẩm chính th�
 
 Cho hội đồng tự thử đầu vào: người khác ngồi vào, hiệu chuẩn lại, thử nhắm mắt. Khi hiệu chuẩn lại, các bộ đếm mắt bắt đầu lại; xuất phiên trước nếu cần giữ kết quả cũ.
 
-Nếu webcam lỗi, chuyển sang video dự phòng và nói rõ đó là video. Nút mô phỏng dùng minh họa thuật toán; không dùng kết quả mô phỏng thay cho bằng chứng webcam.
+Nếu webcam lỗi, chuyển sang video dự phòng và nói rõ đó là video. Bấm **Video dự phòng** để mở tệp quay sẵn: nó chạy qua đúng model, hình học, hiệu chuẩn và bộ đếm, nhưng giao diện hiện nhãn “VIDEO DỰ PHÒNG · KHÔNG PHẢI CAMERA TRỰC TIẾP” và JSON ghi `evidenceClass: pre-recorded-file`. Nói rõ với hội đồng đây là video quay sẵn, không phải người dùng thật đang ngồi trước camera. Nên chuẩn bị tệp mở đầu bằng khoảng 8–10 giây mắt mở để hiệu chuẩn kịp (lần suy luận đầu cần vài giây khởi động GPU).
+
+Nút mô phỏng dùng minh họa thuật toán; không dùng kết quả mô phỏng thay cho bằng chứng webcam hay video.
 
 ## Phút 5–7: kiến thức, bằng chứng và tác động
 
