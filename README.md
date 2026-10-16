@@ -15,7 +15,7 @@ npm start
 Mở **http://127.0.0.1:8080**. Không mở `index.html` bằng `file://`. Nếu PowerShell chặn `npm.ps1`, dùng `npm.cmd` thay cho `npm`.
 
 - Internet chỉ cần ở bước cài thư viện và tải model (~3.8 MB). Sau đó ứng dụng chạy cục bộ, không dùng API key, CDN hay dịch vụ AI bên ngoài.
-- Bấm **Bắt đầu camera**, tự cấp quyền webcam, mở mắt tự nhiên và nhìn thẳng để hiệu chuẩn 3 giây. Thời gian chờ hiệu chuẩn tối đa 15 giây; không phát cảnh báo cho đến khi hiệu chuẩn thành công.
+- Bấm **Bắt đầu camera**, tự cấp quyền webcam, mở mắt tự nhiên và nhìn thẳng để hiệu chuẩn 3 giây. Thời hạn thu mẫu hiệu chuẩn là 15 giây kể từ khi khung suy luận đầu tiên hoàn tất, không tính thời gian khởi động model; không phát cảnh báo cho đến khi hiệu chuẩn thành công.
 - Nhắm cả hai mắt trên ngưỡng thời gian đã chọn (mặc định 1.5 giây) để thử cảnh báo; mở mắt để kết thúc. Chớp mắt ngắn không báo động.
 - Bấm **Video dự phòng** để mở một tệp video quay sẵn khi webcam hỏng hoặc không có camera. Video chạy qua **đúng model, hình học, hiệu chuẩn và bộ đếm** như camera thật, nhưng luôn được gắn nhãn “VIDEO DỰ PHÒNG · KHÔNG PHẢI CAMERA TRỰC TIẾP” và ghi `evidenceClass: pre-recorded-file` trong JSON. **Nên mở đầu tệp bằng khoảng 8–10 giây mắt mở** để hiệu chuẩn kịp; lần suy luận đầu tiên cần vài giây khởi động GPU.
 - Bấm **Chạy mô phỏng** để thử logic bằng tín hiệu tổng hợp trong 16 giây; chọn kịch bản trước khi chạy. Mô phỏng được ghi nhãn trên giao diện và trong file xuất (`evidenceClass: synthetic-simulation`).
@@ -48,7 +48,7 @@ npm test
 npm run check
 ```
 
-10 kiểm thử về hình học, chớp mắt, cảnh báo theo thời gian, mất tín hiệu, khung hình bị trễ, tỉ lệ cửa sổ trượt và hiệu chuẩn. Không cần webcam để chạy kiểm thử logic.
+19 kiểm thử về hình học, chớp mắt, cảnh báo theo thời gian, mất tín hiệu, khung hình bị trễ, tỉ lệ cửa sổ trượt, hiệu chuẩn khi model khởi động chậm và dừng/đổi video đang tải. Không cần webcam để chạy kiểm thử logic; các ca vòng đời ứng dụng dùng bộ giả lập API trình duyệt và model có thời gian suy luận điều khiển được.
 
 Khi server đang chạy, mở http://127.0.0.1:8080/tests/model-smoke.html để kiểm tra model thực sự khởi tạo và xử lý một canvas trống; không bật camera. Phép thử này không đo độ chính xác trên khuôn mặt người.
 

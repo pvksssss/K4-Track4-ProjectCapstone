@@ -88,7 +88,7 @@ function newSession(source) {
   samples = []; events = []; history = []; latencies = []; frameTimes = [];
   lastProcessed = lastSample = lastRender = -Infinity; lastVideoTime = -1; lastState = null;
   lostSince = null; lostLogged = false; nextBeep = 0;
-  // The first inference of a session includes GPU warm-up and must not eat the calibration budget.
+  // Avoid reporting a stalled stream before its first scheduled frame.
   lastProcessed = performance.now();
   setThreshold(0.21, source === 'simulation' ? 'mô phỏng' : 'mặc định');
   $('preview').hidden = false; $('placeholder').hidden = true;
@@ -172,15 +172,21 @@ async function startCamera() {
       beginCalibration();
       frameId = requestAnimationFrame(cameraFrame);
     } catch (error) {
+      // A cancelled play() may reject after a new session has taken over this video element.
+      // stopSession already released the old URL; never clean up the new session's media.
+      if (token !== generation) return;
       if (url) URL.revokeObjectURL(url);
       videoObjectUrl = null; mediaMode = null;
-      loading = false; video.removeAttribute('src'); video.hidden = true; controls(); stateView('idle');
+      loading = false; video.pause(); video.removeAttribute('src'); video.load();
+      video.hidden = true; controls(); stateView('idle');
       notice('Không phát được video. Thử tệp mp4/webm phổ biến. Chi tiết: ' + error.message);
     }
   }
 function beginCalibration() {
   if (!running || (mode !== 'camera' && mode !== 'video')) return;
-  calibration = { started: performance.now(), last: null, validMs: 0, samples: [] };
+  // Start the acquisition deadline only after inference actually returns a frame.
+  // The first GPU inference can take seconds and must not consume this budget.
+  calibration = { started: null, last: null, validMs: 0, samples: [] };
   session.calibrationReady = false;
   monitor.closedSince = null;
   $('calibration-overlay').hidden = false; $('calibration-progress').style.width = '0%';
@@ -190,6 +196,7 @@ function beginCalibration() {
 }
 function calibrationStep(measurement, time) {
   const current = calibration;
+  current.started ??= time;
   if (time - current.started > 15000) {
     calibration = null; $('calibration-overlay').hidden = true;
     addEvent('lost', 'Hiệu chuẩn chưa thành công', 'Chưa thu được đủ tín hiệu hợp lệ.');
@@ -225,18 +232,21 @@ function cameraFrame(time) {
     try {
       const before = performance.now();
       const result = landmarker.detectForVideo(video, before);
-      const inferenceMs = performance.now() - before;
+      const measuredAt = performance.now();
+      const inferenceMs = measuredAt - before;
       const landmarks = result.faceLandmarks?.[0];
       const measurement = measureFace(landmarks, preview.width, preview.height);
       ctx.drawImage(video, 0, 0, preview.width, preview.height);
       if (landmarks) drawLandmarks(landmarks, measurement.valid);
-      if (calibration) calibrationStep(measurement, time);
-      processMeasurement(measurement, time, inferenceMs, !session.calibrationReady);
+      if (calibration) calibrationStep(measurement, measuredAt);
+      processMeasurement(measurement, measuredAt, inferenceMs, !session.calibrationReady);
     } catch (error) {
       stopSession('Lỗi xử lý khung hình'); notice('Không xử lý được khung hình: ' + error.message); return;
     }
   } else if (time - lastProcessed > 600) {
-    processMeasurement({ valid: false, reason: mediaMode === 'file' ? 'Video không cung cấp khung hình mới' : 'Camera không cung cấp khung hình mới' }, time, null, !session.calibrationReady);
+    const missing = { valid: false, reason: mediaMode === 'file' ? 'Video không cung cấp khung hình mới' : 'Camera không cung cấp khung hình mới' };
+    if (calibration && calibration.started !== null) calibrationStep(missing, time);
+    processMeasurement(missing, time, null, !session.calibrationReady);
     lastProcessed = time;
   }
   // A file has an end; a live camera never reaches one.
