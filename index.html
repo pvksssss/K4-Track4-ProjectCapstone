@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#123e35">
   <meta name="description" content="Vin Driver Watch — demo phát hiện nhắm mắt kéo dài bằng webcam, xử lý trên thiết bị.">
   <title>Vin Driver Watch · Theo dõi sự tỉnh táo</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23173d32'/%3E%3Cpath d='M10 32s8-14 22-14 22 14 22 14-8 14-22 14S10 32 10 32Z' fill='none' stroke='%23a7f0b8' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23a7f0b8'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/src/styles.css">
   <script type="module" src="/src/app.js"></script>
 </head>
@@ -34,13 +35,14 @@
           <video id="video" autoplay muted playsinline hidden></video>
           <canvas id="preview" width="960" height="600" aria-label="Hình ảnh camera và các mốc mắt" hidden></canvas>
           <div class="view-grid" aria-hidden="true"></div><div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
-          <div class="camera-placeholder" id="placeholder"><div class="eye-symbol"><svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M8 32s9-16 24-16 24 16 24 16 24 16-9 16-24 16S8 32 8 32Z" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="32" r="8" stroke="currentColor" stroke-width="2"/><path d="M32 4v6m0 44v6M4 32h6m44 0h6" stroke="currentColor" stroke-width="2"/></svg></div><h3>Sẵn sàng khi bạn sẵn sàng.</h3><p>Bật camera, nhìn thẳng và hiệu chuẩn trong 3 giây.<br>Hình ảnh chỉ được xử lý trong trình duyệt của bạn.</p><span class="placeholder-label">WEBCAM → FACE LANDMARKS → EAR → CẢNH BÁO</span></div>
+          <div class="camera-placeholder" id="placeholder"><div class="eye-symbol"><svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M8 32s9-16 24-16 24 16 24 16-9 16-24 16S8 32 8 32Z" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="32" r="8" stroke="currentColor" stroke-width="2"/><path d="M32 4v6m0 44v6M4 32h6m44 0h6" stroke="currentColor" stroke-width="2"/></svg></div><h3>Sẵn sàng khi bạn sẵn sàng.</h3><p>Bật camera, nhìn thẳng và hiệu chuẩn trong 3 giây.<br>Hình ảnh chỉ được xử lý trong trình duyệt của bạn.</p><span class="placeholder-label">WEBCAM → FACE LANDMARKS → EAR → CẢNH BÁO</span></div>
           <div class="camera-hud"><span id="tracking-label"><i></i> ĐANG CHỜ CAMERA</span><span id="fps-label">— FPS</span></div>
           <div id="simulation-label" class="simulation-label" hidden>MÔ PHỎNG · KHÔNG PHẢI KẾT QUẢ CAMERA</div>
+          <div id="video-label" class="simulation-label" hidden>VIDEO DỰ PHÒNG · KHÔNG PHẢI CAMERA TRỰC TIẾP</div>
           <div class="calibration-overlay" id="calibration-overlay" hidden><span id="calibration-text">Mở mắt tự nhiên, nhìn thẳng…</span><div class="progress-track"><i id="calibration-progress"></i></div></div>
           <div class="alert-overlay" id="alert-overlay" hidden><strong>Hãy dừng lại và nghỉ ngơi</strong><span>Phát hiện hai mắt nhắm kéo dài</span></div>
         </div>
-        <div class="camera-actions"><button class="button primary" id="start-camera"><span aria-hidden="true">◉</span> Bắt đầu camera</button><button class="button secondary" id="start-simulation"><span aria-hidden="true">▷</span> Chạy mô phỏng</button><button class="button danger" id="stop" disabled>Dừng phiên</button><label class="sound-control"><input type="checkbox" id="sound" checked> Âm báo</label></div>
+        <div class="camera-actions"><button class="button primary" id="start-camera"><span aria-hidden="true">◉</span> Bắt đầu camera</button><button class="button secondary" id="start-video"><span aria-hidden="true">▤</span> Video dự phòng</button><button class="button secondary" id="start-simulation"><span aria-hidden="true">▷</span> Chạy mô phỏng</button><button class="button danger" id="stop" disabled>Dừng phiên</button><label class="sound-control"><input type="checkbox" id="sound" checked> Âm báo</label><input type="file" id="video-file" accept="video/*" hidden></div>
         <div class="camera-caption"><span class="local-dot"></span><span>Không ghi video · Không nhận diện danh tính · Không cần API key</span></div>
       </section>
       <aside class="right-column">
