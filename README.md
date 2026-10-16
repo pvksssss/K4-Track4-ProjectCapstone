@@ -2,6 +2,14 @@
 
 Demo cảnh báo **hai mắt nhắm kéo dài** cho bối cảnh tài xế VinBus / VinFast. Webcam → MediaPipe Face Landmarker → hình học mắt (EAR) → bộ đếm theo thời gian → cảnh báo hình ảnh và âm thanh. Đây là một tín hiệu có thể liên quan đến buồn ngủ, không phải phép chẩn đoán buồn ngủ.
 
+## Thành viên nhóm
+
+| Họ và tên | MSSV |
+|---|---|
+| Vũ Gia Khải | 2A202602786 |
+| Phạm Văn Kiên | 2A202602590 |
+| Nguyễn Minh Đức | 2A202602783 |
+
 ## Chạy ứng dụng
 
 Cần **Node.js 20 trở lên**, Chrome hoặc Edge và webcam. Trong thư mục dự án:
