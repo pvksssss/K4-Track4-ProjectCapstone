@@ -1,0 +1,17 @@
+{
+  "name": "vin-driver-watch",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local webcam driver drowsiness capstone demo",
+  "scripts": {
+    "setup": "node scripts/download-model.mjs",
+    "start": "node scripts/server.mjs",
+    "test": "node --test",
+    "check": "node --check src/app.js && node --check src/monitor.js && node --check scripts/server.mjs && node --check scripts/download-model.mjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.32"
+  },
+  "engines": { "node": ">=20" }
+}
